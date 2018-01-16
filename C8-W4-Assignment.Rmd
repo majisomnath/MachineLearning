@@ -1,0 +1,133 @@
+---
+title: "Machine Learing - Prediction Assignment"
+author: "Somnath Maji"
+date: "January 15, 2018"
+output: html_document
+---
+
+###Executive Summary
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+###Data Source
+The training data for this project are available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+###Data Loading
+```{r DataLoad}
+trainData <- read.csv("pml-training.csv", sep = ",", header = TRUE, na.strings = c('#DIV/0', '', 'NA'))
+testData <- read.csv("pml-testing.csv", sep = ",", header = TRUE, na.strings = c('#DIV/0', '', 'NA'))
+```
+
+###Exploitory Data Analysis
+Let’s take a look at the dimensions of the training and testing datasets, and also check variable CLASSE to see how it is distributed on given data.
+
+```{r DataProcessing}
+dim(trainData)
+dim(testData)
+summary(trainData$classe)
+
+# There are many columns with NA values, these columns will be removed now
+trainData <- trainData[, colSums(is.na(trainData)) == 0]
+testData <- testData[, colSums(is.na(testData)) == 0]
+
+# remove unwanted 7 columns from last
+trainData = trainData[,-c(1:7)]
+testData = testData[,-c(1:7)]
+
+# recheck data dimension
+dim(trainData)
+dim(testData)
+```
+
+###Cross Validation
+The Training dataset will be splitted into two parts, the 70% data set will be used as Traning data and rest will be used for Test data for prediction. Below we are going to to fit Dicision Tree(DT), Random Forest(RF) and Linear Discriminant Analysis(LDA) models to see how they perform.
+
+```{r Validation}
+# Set the seed for reproducibility
+set.seed(4321)
+
+# Load necessary libraries 
+library(caret)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+
+#Split the Training dataset into Train and Test 
+inTrain <- createDataPartition(trainData$classe, p = 0.7, list = FALSE)
+cvTrainData <- trainData[inTrain,]
+cvTestData <- trainData[-inTrain,]
+#dim(cvTrainData)
+```
+
+###Desicion Tree Algorithm
+A decision tree is a flow-chart-like structure, where each internal (non-leaf) node denotes a test on an attribute, each branch represents the outcome of a test, and each leaf (or terminal) node holds a class label. The topmost node in a tree is the root node. Let us use this algorithm to determine Test data prediction.
+
+```{r DecisionTree, cache=TRUE}
+# Dicision tree algo application and fancy plot the outcome
+fitDT <- rpart(classe ~ ., data = trainData, method = "class")
+fancyRpartPlot(fitDT)
+
+# predicting the outcome variable(classe) on test dataset
+predDT <- predict(fitDT, cvTestData, type = "class")
+
+# Create Confusion Matrix on redicted outcome on test dataset
+confDT <- confusionMatrix(predDT, cvTestData$classe)
+confDT
+
+#plot the confusion matrix
+plot(confDT$table, col = confDT$byClass, main = "Decision Tree Confusion Matrix")
+```
+
+
+###Random Forest Model Prediction
+Random forests or random decision forests are an ensemble learning method for classification, regression and other tasks, that operate by constructing a multitude of decision trees at training time and outputting the class that is the mode of the classes (classification) or mean prediction (regression) of the individual trees. Random decision forests correct for decision trees' habit of overfitting to their training set.
+
+```{r RandomForest, cache=TRUE}
+# Fit Random Forest(RF) model
+#fitRF <- train(classe ~ ., data = trainData, method = "rf")
+fitRF <- randomForest(classe ~ ., data = trainData)
+plot(fitRF)
+
+# Predicting the outcome variable on test dataset
+predRF <- predict(fitRF, cvTestData)
+
+# Create Confusion Matrix on redicted outcome on test dataset
+confRF <- confusionMatrix(predRF, cvTestData$classe)
+confRF
+
+#plot the confusion matrix
+plot(confRF$table, col = confRF$byClass, main = "Random Forest Confusion Matrix")
+```
+
+###Linear Discriminant Aalysis Prediction
+Logistic regression is a classification algorithm traditionally limited to only two-class classification problems. If you have more than two classes then Linear Discriminant Analysis is the preferred linear classification technique.
+
+```{r LinerDisc, cache=TRUE}
+# Fit Linear discriminant analysis (LDA) model
+fitLDA <- train(classe ~ ., data = trainData, method = "lda")
+
+# Predicting with Linear discriminant analysis(LDA) model
+predLDA <- predict(fitLDA, cvTestData)
+
+# Create Confusion Matrix on LDA outcome on test dataset
+confLDA <- confusionMatrix(predLDA, cvTestData$classe)
+confLDA
+
+#plot the confusion matrix
+plot(confLDA$table, col = confLDA$byClass, main = "Linear Discriminant Aalysis Confusion Matrix")
+```
+
+###Conclusion
+The Random Forest (RF) model has an excellent performance, with 99.94% accuracy on the training dataset.
+The Linear Discriminant Analysis(LDA) model and Dicision Tree(DT) have an inferior performance compared to previous model, it has 70% and 75% accuracy respectively.
+
+We have found the Random Forest(RF) model has best fitted model and it will be used to make the out of the sample prediction, in this case, the testing dataset with new 20 samples.
+
+###Random Forest predictions for Testing dataset
+```{r}
+predict(fitRF,testData)
+```
