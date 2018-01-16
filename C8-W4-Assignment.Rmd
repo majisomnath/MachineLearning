@@ -1,5 +1,5 @@
----
-title: "Machine Learing - Prediction Assignment"
+﻿---
+title: "Machine Learning - Prediction Assignment"
 author: "Somnath Maji"
 date: "January 15, 2018"
 output: html_document
